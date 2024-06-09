@@ -1,9 +1,11 @@
-use rand;
-use std::collections::HashSet;
+#![feature(let_chains)]
+use rand::{Rng};
+use std::collections::HashMap;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+
+#[derive(Debug, Clone)]
 struct DiePool {
-    rng: rand::ThreadRng
+    rng: rand::rngs::ThreadRng
 }
 
 impl DiePool {
@@ -12,7 +14,7 @@ impl DiePool {
     }
 
     fn d6(&self) -> i8 {
-        (self.rng.gen() * 6).ceil() as i8
+        (self.rng.gen::<f64>() * 6.0).ceil() as i8
     }
 
     fn twod6(&self) -> i8 {
@@ -261,7 +263,8 @@ impl CharSheet {
                             panic!("Basic var of special skill {:?} with nonzero positive skill value", skill)
                         }
 
-                        incr_specialism_skill(&s, &mut self.skills); //launch prompt to pick a specialism to increase
+                        let specialism = select_specialism_skill(&s, &mut self.skills); //launch prompt to pick a specialism to increase
+                        self.inc_skill(specialism);
 
                     } else {
                         self.skills.insert(skill, 0); //add basic skill at level 0
@@ -284,6 +287,46 @@ impl CharSheet {
                         self.skills.insert(basic, 0)
                     } else { //we have basic skill but not the specialism, which we get at 1
                         self.skills.insert(skill, 1)
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn set_min_skill(&mut self, skill: Skill, val: i8) -> Result<(),Err> {
+        match &skill {
+            Skill::BasicSkill{name: s} => {
+                //TODO: need to enforce the invariant that a basic skill with a specialist skill pairing cannot have val > 0
+                // (instead you need to pick a specialism)
+                if *s as i32 >= BasicSkill::LAST as i32 && val > 0 {
+                    
+                    //we interpret this as meaning "free selection for specialism skill"
+                    let specialism = select_specialism_skill(&s, &mut self.skills);
+                    self.set_min_skill(specialism, val);
+
+                } else if let Some(vv) = self.skills.get_mut(skill) {
+                    if vv < val {
+                        *vv = val;
+                    }
+                } else {
+                    self.skills.insert(skill, val);
+                };
+            },
+            Skill::SpecSkill{name: s, spec: sp} => {
+                //TODO: also need to enforce invariant that SpecSkills never have value 0 - that just gives you the BasicSkill
+                //need to enforce invariant that the basic skill must also exist if we add a "new specialist skill"
+                if let Some(vv) = self.skills.get_mut(skill) && val > 0 { 
+                    if vv < val {
+                        *vv = val;
+                    }
+                } else {
+                    let basic = Skill::BasicSkill{name: *s};
+                    if self.skills.contains_key(basic) == false {
+                        self.skills.insert(basic, 0)
+                    }
+                    if val > 0 {
+                        self.skills.insert(skill, val);
                     }
                 }
             }

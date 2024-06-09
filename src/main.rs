@@ -54,7 +54,7 @@ impl Skill {
         }
     }
 
-    fn select_specialism_skill(&self, skills: HashMap<Skill, i8>) -> Option<Self> {
+    fn select_specialism_skill(&self, skills: &HashMap<Skill, i8>) -> Option<Self> {
         match self {
             Skill::BasicSkill{name} => {
                 if (*name as i32) < BasicSkill::LAST as i32 {
@@ -80,7 +80,7 @@ impl Skill {
                         Some(*specs[num])
                     } else {
                         print!("Enter specialism name:");
-                        //read value
+                        //read value {ideally we have a hint set of "standard values" here for the menu}
                         let specialism = "";
 
                         Some(Skill::SpecSkill{name:*name, spec: specialism.to_string()})
@@ -166,7 +166,8 @@ enum Benefit {
     Yacht
 }
 
-
+//This is too general - Skill/Training tables at least should be specialisable as they only have results that increase skills or stats
+//admittedly *all the other tables* are v general!
 struct Row {
     txt: String, 
     action: fn(&mut CharSheet)->()
@@ -192,6 +193,16 @@ impl Test for StatTest {
     fn test(&self, charsheet: &CharSheet ) -> Effect {
         charsheet.get_stat_mod(self.0) + charsheet.twod6() - self.1 
     }
+}
+
+type SkillTest = (Skill, i8);
+
+impl Test for SkillTest {
+    fn test(&self, charsheet: &CharSheet) -> Effect {
+
+
+    }
+
 }
 
 struct SkillsAndTraining {
@@ -259,6 +270,31 @@ impl CharSheet {
         self.diepool.twod6()
     }
 
+
+    fn get_skill(&self , skill: Skill) -> i8 {
+        match &skill {
+            Skill::BasicSkill{name: s} => {
+                if let Some(vv) = self.skills.get(&skill) {
+                    *vv
+                } else if let Some(joat) = self.skills.get(&Skill::BasicSkill{name:BasicSkill::JackOfAllTrades}) {
+                    joat - 3
+                } else {
+                    -3
+                }
+            },
+            Skill::SpecSkill{name: s, spec: sp} => {
+                //if we don't have the advanced skill, we fall back on the basic one
+                if let Some(v) = self.skills.get(&skill) { 
+                    *v
+                } else {
+                    let basic = Skill::BasicSkill{name:*s};
+                    self.get_skill(basic)
+                }
+            }
+        }
+
+    }
+
     fn set_skill(&mut self, skill: Skill, val: i8) -> Result<(),Err> {
         match &skill {
             Skill::BasicSkill{name: s} => {
@@ -305,8 +341,9 @@ impl CharSheet {
                             panic!("Basic var of special skill {:?} with nonzero positive skill value", skill)
                         }
 
-                        let specialism = skill.select_specialism_skill(&self.skills); //launch prompt to pick a specialism to increase
-                        self.inc_skill(specialism);
+                        if let Some(specialism) = skill.select_specialism_skill(&self.skills) { //launch prompt to pick a specialism to increase
+                            self.inc_skill(specialism);
+                        }
 
                     } else {
                         self.skills.insert(skill, 0); //add basic skill at level 0
@@ -344,8 +381,9 @@ impl CharSheet {
                 if (*s as i32) < (BasicSkill::LAST as i32) && val > 0 {
                     
                     //we interpret this as meaning "free selection for specialism skill"
-                    let specialism = skill.select_specialism_skill(self.skills);
-                    self.set_min_skill(specialism, val);
+                    if let Some(specialism) = skill.select_specialism_skill(&self.skills) {
+                        self.set_min_skill(specialism, val);
+                    }
 
                 } else if let Some(vv) = self.skills.get_mut(&skill) {
                     if *vv < val {

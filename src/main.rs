@@ -168,15 +168,18 @@ enum Benefit {
 
 //This is too general - Skill/Training tables at least should be specialisable as they only have results that increase skills or stats
 //admittedly *all the other tables* are v general!
+#[derive(Debug, PartialEq, Clone)]
 struct Row {
     txt: String, 
     action: fn(&mut CharSheet)->()
 }
 
+#[derive(Debug, PartialEq, Clone)]
 struct Table<const N: usize>{
     offset: i8,
     rows: [Row; N],
 }
+
 
 trait Test {
     fn test(&self, charsheet: &CharSheet ) -> Effect;
@@ -204,6 +207,7 @@ impl Test for SkillTest {
 
 }
 
+#[derive(Debug, Clone, PartialEq)]
 struct SkillsAndTraining {
     assignment: [Table<6>; 3],
     pd: Table<6>,
@@ -212,7 +216,36 @@ struct SkillsAndTraining {
     commissioned: Option<Table<6>>
 }
 
-struct Career {
+
+enum Career {
+    Agent,
+    Army, 
+    Citizen,
+    Drifter,
+    Entertainer,
+    Marine,
+    Merchant,
+    Navy,
+    Noble,
+    Rogue,
+    Scholar,
+    Scout,
+    LAST, //maybe we need a sentinel here?
+    Psionic,
+    PreUniversity,
+    PreMilitary
+}
+
+//not sure if I need this - but there's only ever three choices, so I can enforce this way or via checks in CareerPage...
+enum CareerAssign {
+    One,
+    Two,
+    Three
+}
+
+//this is a Career we can roll on, but is this what we should store in the CharSheet, or should that have properties
+#[derive(Debug, Clone, PartialEq)]
+struct CareerPage {
     qualification: StatTest,
     assignment_names: [String; 3],
     survival: [StatTest; 3],
@@ -223,11 +256,19 @@ struct Career {
     events: Table<11>,
 }
 
+struct CareerElem {
+    career: Career,
+    assignment: CareerAssign, 
+    commissioned: bool,
+    rank: u8,
+
+}
+
 
 struct CharSheet {
     stats: [i8; 7],
     skills: HashMap<Skill, i8>,
-    career: Vec<Career>,
+    career: Vec<CareerElem>,
     cash: i32,
     benefits: Vec<Benefit>,
     diepool: DiePool,

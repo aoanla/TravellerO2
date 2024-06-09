@@ -199,8 +199,7 @@ type SkillTest = (Skill, i8);
 
 impl Test for SkillTest {
     fn test(&self, charsheet: &CharSheet) -> Effect {
-
-
+        charsheet.get_skill(self.0) + charsheet.twod6() - self.1 
     }
 
 }
@@ -277,7 +276,7 @@ impl CharSheet {
                 if let Some(vv) = self.skills.get(&skill) {
                     *vv
                 } else if let Some(joat) = self.skills.get(&Skill::BasicSkill{name:BasicSkill::JackOfAllTrades}) {
-                    joat - 3
+                    *joat - 3
                 } else {
                     -3
                 }

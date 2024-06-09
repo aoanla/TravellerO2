@@ -370,6 +370,7 @@ impl CharSheet {
         Ok(())
     }
 
+    //we could now write this as inc_skill_min(.., .., 0 ); ...
     fn inc_skill(&mut self, skill: Skill) -> Result<(),Err> {
         match &skill {
             Skill::BasicSkill{name: s} => {
@@ -406,6 +407,61 @@ impl CharSheet {
                         self.skills.insert(basic, 0);
                     } else { //we have basic skill but not the specialism, which we get at 1
                         self.skills.insert(skill, 1);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn inc_skill_min(&mut self, skill: Skill, minval: i8) -> Result<(),Err> {
+        match &skill {
+            Skill::BasicSkill{name: s} => {
+                //TODO: need to enforce the invariant that a basic skill with a specialist skill pairing cannot have val > 0
+                // (instead you need to pick a specialism)
+                if (*s as i32) < BasicSkill::LAST as i32 {
+                    if let Some(vv) = self.skills.get_mut(&skill) { //must be == 0 if it has a specialism
+                        if *vv != 0 {
+                            panic!("Basic var of special skill {:?} with nonzero positive skill value", skill)
+                        }
+
+                        if let Some(specialism) = skill.select_specialism_skill(&self.skills) { //launch prompt to pick a specialism to increase
+                            self.inc_skill_min(specialism, minval);
+                        }
+
+                    } else {
+                        self.skills.insert(skill, minval); //add basic skill at level 0
+                    }
+                } else {
+                    if let Some(vv) = self.skills.get_mut(&skill) {
+                        if *vv < minval {
+                            *vv = minval;
+                        } else {
+                            *vv += 1;
+                        }
+                    } else {
+                        self.skills.insert(skill, minval);
+                    }
+                };
+            },
+            Skill::SpecSkill{name: s, spec: sp} => {
+                //need to enforce invariant that the basic skill must also exist if we add a "new specialist skill"
+                if let Some(v) = self.skills.get_mut(&skill) {
+                    if *v < minval {
+                        *v = minval;
+                    } else {
+                        *v += 1;
+                    } 
+                } else {
+                    let basic = Skill::BasicSkill{name: *s};
+                    if self.skills.contains_key(&basic) == true { //we have the basic skill, so we're just upping the true skill
+                        let minval_cap = std::cmp::max(minval, 1);
+                        self.skills.insert(skill, minval_cap);
+                    } else {
+                        self.skills.insert(basic, 0); //add the basic skill first then...
+                        if minval > 0 { //lets be nice and ignore if minval is 0 rather than throwing an error about giving specialist skills at 0
+                            self.skills.insert(skill, minval);
+                        }
                     }
                 }
             }

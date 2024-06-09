@@ -240,6 +240,7 @@ impl CharSheet {
                     if ! self.skills.contains_key(basic) {
                         self.skills.insert(basic, 0)
                     }
+                    self.skills.insert(skill, val);
 
                 }
             }

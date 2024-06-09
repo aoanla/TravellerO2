@@ -225,26 +225,70 @@ impl CharSheet {
                     v = 0;
                     //throw error? call set_skill_interactive to get them to pick a specialism?
                 }
-                if let Some(v) = self.skills.get_mut(skill) {
-                    *v += val;
+                if let Some(vv) = self.skills.get_mut(skill) {
+                    *vv = v;
                 } else {
-                    self.skills.insert(skill, val);
+                    self.skills.insert(skill, v);
+                };
+            },
+            Skill::SpecSkill{name: s, spec: sp} => {
+                //TODO: also need to enforce invariant that SpecSkills never have value 0 - that just gives you the BasicSkill
+                //need to enforce invariant that the basic skill must also exist if we add a "new specialist skill"
+                if let Some(v) = self.skills.get_mut(skill) && val > 0 { 
+                    *v = val; 
+                } else {
+                    let basic = Skill::BasicSkill{name: *s};
+                    if self.skills.contains_key(basic) == false {
+                        self.skills.insert(basic, 0)
+                    }
+                    if val > 0 {
+                        self.skills.insert(skill, val);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn inc_skill(&mut self, skill: Skill) -> Result<(),Err> {
+        match &skill {
+            Skill::BasicSkill{name: s} => {
+                //TODO: need to enforce the invariant that a basic skill with a specialist skill pairing cannot have val > 0
+                // (instead you need to pick a specialism)
+                if *s as i32 >= BasicSkill::LAST as i32 {
+                    if let Some(vv) = self.skills.get_mut(skill) { //must be == 0 if it has a specialism
+                        if vv != 0 {
+                            panic!("Basic var of special skill {:?} with nonzero positive skill value", skill)
+                        }
+
+                        incr_specialism_skill(&s, &mut self.skills); //launch prompt to pick a specialism to increase
+
+                    } else {
+                        self.skills.insert(skill, 0); //add basic skill at level 0
+                    }
+                } else {
+                    if let Some(vv) = self.skills.get_mut(skill) {
+                        *vv += 1;
+                    } else {
+                        self.skills.insert(skill, 0);
+                    }
                 };
             },
             Skill::SpecSkill{name: s, spec: sp} => {
                 //need to enforce invariant that the basic skill must also exist if we add a "new specialist skill"
                 if let Some(v) = self.skills.get_mut(skill) { 
-                    *v += val; 
+                    *v += 1; 
                 } else {
-                    let basic = Skill::BasicSkill{name: *s as BasicSkill};
-                    if ! self.skills.contains_key(basic) {
+                    let basic = Skill::BasicSkill{name: *s};
+                    if self.skills.contains_key(basic) == false { //if we never had the skill, we get basic at 0
                         self.skills.insert(basic, 0)
+                    } else { //we have basic skill but not the specialism, which we get at 1
+                        self.skills.insert(skill, 1)
                     }
-                    self.skills.insert(skill, val);
-
                 }
             }
         }
+        Ok(())
     }
 
 }

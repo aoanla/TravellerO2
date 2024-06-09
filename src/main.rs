@@ -34,12 +34,47 @@ enum Stat {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Skill{
-    BasicSkill{name: BasicSkill, value: i8},
-    SpecSkill{name: BasicSSkill, spec: String, value: i8},
+    BasicSkill{name: BasicSkill},
+    SpecSkill{name: BasicSkill, spec: String},
+}
+
+impl Skill {
+    fn new_basic(name: BasicSkill) -> Skill {
+        Skill::BasicSkill{name}
+    }
+
+    fn new_spec(name: BasicSkill, spec: String) -> Option<Skill> {
+        //enforce the list of specialisable strings
+        if name as i32 > BasicSkill::LAST as i32 {
+            None 
+        } else {
+            Some(Skill::SpecSkill{name, spec})
+        }
+    }
+
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BasicSkill {
+    Animals,
+    Art,
+    Athletics,
+    Drive,
+    Electronics,
+    Engineer,
+    Flyer,
+    Gunner,
+    GunCombat,
+    HeavyWeapons,
+    Language,
+    Melee,
+    Pilot,
+    Profession,
+    Science,
+    Seafarer,
+    Tactics,
+    LAST,
+    //skills without specialisms from here
     Admin,
     Advocate,
     Astrogation,
@@ -61,29 +96,9 @@ enum BasicSkill {
     Steward,
     Streetwise,
     Survival,
-    VaccSuit
+    VaccSuit,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BasicSSkill {
-    Animals,
-    Art,
-    Athletics,
-    Drive,
-    Electronics,
-    Engineer,
-    Flyer,
-    Gunner,
-    GunCombat,
-    HeavyWeapons,
-    Language,
-    Melee,
-    Pilot,
-    Profession,
-    Science,
-    Seafarer,
-    Tactics,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Benefit {
@@ -157,7 +172,7 @@ struct Career {
 
 struct CharSheet {
     stats: [i8; 7],
-    skills: HashSet<Skill>,
+    skills: HashMap<Skill>,
     career: Vec<Career>,
     cash: i32,
     benefits: Vec<Benefit>,
@@ -198,6 +213,37 @@ impl CharSheet {
 
     fn twod6(&self) -> i8 {        
         self.diepool.twod6()
+    }
+
+    fn set_skill(&mut self, skill: Skill, val: i8) -> Result<(),Err> {
+        match &skill {
+            Skill::BasicSkill{name: s} => {
+                //TODO: need to enforce the invariant that a basic skill with a specialist skill pairing cannot have val > 0
+                // (instead you need to pick a specialism)
+                let mut v = val;
+                if *s as i32 >= BasicSkill::LAST as i32 && v > 0{
+                    v = 0;
+                    //throw error? call set_skill_interactive to get them to pick a specialism?
+                }
+                if let Some(v) = self.skills.get_mut(skill) {
+                    *v += val;
+                } else {
+                    self.skills.insert(skill, val);
+                };
+            },
+            Skill::SpecSkill{name: s, spec: sp} => {
+                //need to enforce invariant that the basic skill must also exist if we add a "new specialist skill"
+                if let Some(v) = self.skills.get_mut(skill) { 
+                    *v += val; 
+                } else {
+                    let basic = Skill::BasicSkill{name: *s as BasicSkill};
+                    if ! self.skills.contains_key(basic) {
+                        self.skills.insert(basic, 0)
+                    }
+
+                }
+            }
+        }
     }
 
 }

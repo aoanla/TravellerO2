@@ -283,11 +283,15 @@ impl CharSheet {
     fn new()->CharSheet {
         CharSheet {
             stats: [0;7],
-            skills: ,
+            skills: todo!(),
             career: Vec::new(),
             cash: 0,
             benefits: Vec::new(),
             diepool: DiePool::new(),
+            life_event: todo!(),
+            aging: todo!(),
+            injury: todo!(),
+            pension: todo!()
         }
     }
 
